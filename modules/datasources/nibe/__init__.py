@@ -8,14 +8,24 @@
 #                  information
 #
 # Author:          Olli Lammi (olammi@iki.fi)
+# Updater:         Saku Pakkanen (saku.pakkanen@gmail.com)
 #
 ###########################################################################
 
 # Imports
 
-import sourceNibeSerial
-import sourceNibeModbus
-import sourceNibeBusRS485
+try:
+  import os, sys
+
+  dir_path = os.path.dirname(os.path.realpath(__file__))
+  parent_dir_path = os.path.abspath(os.path.join(dir_path, os.pardir))
+  sys.path.insert(0, parent_dir_path + "/nibe")
+
+  import sourceNibeSerial
+  import sourceNibeModbus
+  import sourceNibeBusRS485
+except ImportError as e:
+    print('Relative import failed. Path: '+__name__+'. ImportError: ', e)
 
 # Module definitions
 # __all__ = []

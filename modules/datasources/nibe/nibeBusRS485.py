@@ -808,7 +808,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
                         self.data[id] = [time.time(), value]
 
                         if str(id) != "65535":
-                          self.Log("INFO: Got data for id %d: 0x%04X" % (id, value))
+                          self.Debug("INFO: Got data for id %d: 0x%04X" % (id, value))
                         while id in self.query_queue:
                             self.query_queue.remove(id)
                 finally:
@@ -893,7 +893,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
         if self.isQueryCapable():
             qids = []            
             for cmd in cmds:
-                if not res.has_key(cmd):
+                if res not in cmd:
                     (id, type) = self.getNibeDevice(cmd)
                     if type != 0:
                         qids.append(id)
@@ -904,7 +904,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
                 self.waitForQueryQueues()
 
                 for cmd in cmds:
-                    if not res.has_key(cmd):
+                    if res not in cmd:
                         (id, type) = self.getNibeDevice(cmd)
                         if type != 0:
                             temp = self.runQueryId(id)
@@ -932,7 +932,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
         res = None
         if haveLocksOutside or self.data_lock.lock_wait():
             try:
-                if self.data.has_key(id):
+                if self.data in id:
                     temp = self.data[id]
                     if (time.time() - temp[0]) <= DATAVALID:
                         res = temp[1]
@@ -942,7 +942,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
                     self.Debug("DEBUG: No data found with id " + repr(id))
                     
                 if res == None and self.isQueryCapable():
-                    if self.query_data.has_key(id):
+                    if self.query_data in id:
                         temp = self.query_data[id]
                         if (time.time() - temp[0]) <= DATAVALID:
                             res = temp[1]
@@ -1080,10 +1080,10 @@ class NibeRS485Serial(NibeRS485Base):
                 if self.isRunning():
                     time.sleep(SLEEP_AFTER_FAIL)
 
-        except Exception, e:
+        except Exception as e:
             self.Log("Exception: " + e.__str__())
             self.setFail()
-        except IOError, ioe:
+        except IOError as ioe:
             self.Log("IOError: " + ioe.__str__())
             self.setFail()
 
@@ -1093,7 +1093,7 @@ class NibeRS485Serial(NibeRS485Base):
     
                 
     def openPort(self):
-        if not NIBE_DEVICES.has_key(self.NIBE_DEVICE):
+        if str(NIBE_DEVICES) not in self.NIBE_DEVICE:
             self.Log("ERROR: Invalid NIBE device type: " + self.NIBE_DEVICE)
             return 0
 
@@ -1110,8 +1110,8 @@ class NibeRS485Serial(NibeRS485Base):
                 self.serio = 0
                 self.LOCK.free()
                 return 0 
-        except Exception, e:
-            print "Exception: " + str(e)
+        except Exception as e:
+            print("Exception: ", str(e))
             self.Log("Error opening nibeBus serial port: " + self.SERPORT)
             self.serio = 0
             self.LOCK.free()
@@ -1213,7 +1213,7 @@ class NibeRS485UDP(NibeRS485Base):
                                                 self.Log("INFO: Sending data query for id %d", qid)
                                                 try:
                                                     sock.sendto(generateNibeIdQuery(qid), (self.QUERYADDRESS, self.QUERYPORT))
-                                                except Exception, e:
+                                                except Exception as e:
                                                     self.Log("Error sending query UDP packet to %s port %d" % (self.QUERYADDRESS, self.QUERYPORT))
                                                     self.Log("Exception: " + e.__str__())
                             finally:
@@ -1221,9 +1221,9 @@ class NibeRS485UDP(NibeRS485Base):
                     
                     try:
                         (res, peeraddr) = sock.recvfrom(UDP_RECEIVE_BUFFER_SIZE)
-                    except socket.timeout, st:
+                    except socket.timeout as st:
                         continue
-                    except Exception, e:
+                    except Exception as e:
                         self.Log("Socket error. Terminating UDP receiver thread")
                         self.setFail()
                         break
@@ -1261,10 +1261,10 @@ class NibeRS485UDP(NibeRS485Base):
                 if self.isRunning():
                     time.sleep(SLEEP_AFTER_FAIL)
 
-        except Exception, e:
+        except Exception as e:
             self.Log("Exception: " + e.__str__())
             self.setFail()
-        except IOError, ioe:
+        except IOError as ioe:
             self.Log("IOError: " + ioe.__str__())
             self.setFail()
 

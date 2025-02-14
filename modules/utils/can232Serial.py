@@ -216,10 +216,10 @@ class Can232Serial(threads.Thread, log.Logging):
                 if stat == 1:
                     self.Debug("Received Can232 serial data: " + repr(msg))
                     self.handleCanFrameRow(msg)
-            except Exception, e:
+            except Exception as e:
                 self.Log("Exception: " + e.__str__())
                 self.setFail()
-            except IOError, ioe:
+            except IOError as ioe:
                 self.Log("IOError: " + ioe.__str__())
                 self.setFail()
 

@@ -66,7 +66,7 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
         return self.getModuleName()
 
     def handleConfiguration(self, conf):
-        self.modbusType = string.upper(conf.getValue('TYPE', 'RTU', self.getModuleName()))
+        self.modbusType = conf.getValue('TYPE', 'RTU', self.getModuleName()).upper()
         if not self.modbusType in ['RTU', 'ASCII', 'TCP']:
             return (-1, 'Invalid TYPE configuration')
         
@@ -81,7 +81,7 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
         except:
             return (-1, 'Invalid BAUDRATE configuration')
         
-        self.parity = string.upper(conf.getValue('PARITY', 'EVEN', self.getModuleName()))
+        self.parity = conf.getValue('PARITY', 'EVEN', self.getModuleName()).upper()
         if not self.parity in ['E', 'O', 'N', 'M', 'S', 'EVEN', 'ODD', 'NONE', 'MARK', 'SPACE']:
             return (-1, 'Invalid PARITY configuration')
          
@@ -101,15 +101,15 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
         pointmap = {}
         
         for item in conf.getValue('COILSTATE', [], self.getModuleName()):
-            temps = string.split(item, ':', 3)
+            temps = item.split(':', 3)
             if len(temps) < 3:
                 self.Log("ERROR: Invalid COILSTATE configuration: " + item)
                 return (-1, 'Invalid COILSTATE configuration')
             else:
                 try:
-                    key = string.strip(temps[0])
-                    unitid = int(string.strip(temps[1]))
-                    address = int(string.strip(temps[2]))
+                    key = temps[0].strip()
+                    unitid = int(temps[1]).strip()
+                    address = int(temps[2].strip())
                 except:
                     key = ''
                 if len(key) <= 0:
@@ -125,15 +125,15 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
                     pointmap[key] = tempitem
 
         for item in conf.getValue('INPUTSTATE', [], self.getModuleName()):
-            temps = string.split(item, ':', 3)
+            temps = item.split(':', 3)
             if len(temps) < 3:
                 self.Log("ERROR: Invalid INPUTSTATE configuration: " + item)
                 return (-1, 'Invalid INPUTSTATE configuration')
             else:
                 try:
-                    key = string.strip(temps[0])
-                    unitid = int(string.strip(temps[1]))
-                    address = int(string.strip(temps[2]))
+                    key = temps[0].strip()
+                    unitid = int(temps[1].strip())
+                    address = int(temps[2].strip())
                 except:
                     key = ''
                 if len(key) <= 0:
@@ -149,17 +149,17 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
                     pointmap[key] = tempitem
 
         for item in conf.getValue('HOLDINGREGISTER', [], self.getModuleName()):
-            temps = string.split(item, ':', 5)
+            temps = item.split(':', 5)
             if len(temps) < 5:
                 self.Log("ERROR: Invalid HOLDINGREGISTER configuration: " + item)
                 return (-1, 'Invalid HOLDINGREGISTER configuration')
             else:
                 try:
-                    key = string.strip(temps[0])
-                    unitid = int(string.strip(temps[1]))
-                    address = int(string.strip(temps[2]))
-                    valuetype = string.lower(string.strip(temps[3]))
-                    factor = float(string.strip(temps[4]))
+                    key = temps[0].strip()
+                    unitid = int(temps[1].strip())
+                    address = int(temps[2].strip())
+                    valuetype = temps[3].strip().lower()
+                    factor = float(temps[4].strip())
                 except:
                     key = ''
                 if len(key) <= 0:
@@ -179,17 +179,17 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
                     pointmap[key] = tempitem
 
         for item in conf.getValue('INPUTREGISTER', [], self.getModuleName()):
-            temps = string.split(item, ':', 5)
+            temps = item.split(':', 5)
             if len(temps) < 5:
                 self.Log("ERROR: Invalid INPUTREGISTER configuration: " + item)
                 return (-1, 'Invalid INPUTREGISTER configuration')
             else:
                 try:
-                    key = string.strip(temps[0])
-                    unitid = int(string.strip(temps[1]))
-                    address = int(string.strip(temps[2]))
-                    valuetype = string.lower(string.strip(temps[3]))
-                    factor = float(string.strip(temps[4]))
+                    key = temps[0].strip()
+                    unitid = int(temps[1].strip())
+                    address = int(temps[2].strip())
+                    valuetype = temps[3].strip().lower()
+                    factor = float(temps[4].strip())
                 except:
                     key = ''
                 if len(key) <= 0:
@@ -247,16 +247,16 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
         units = {}
 
         for cmd in cmds:
-            if not self.dataPoints.has_key(cmd):
+            if self.dataPoints not in cmd:
                 self.Log("ERROR: Unconfigured datapoint: %s" % cmd)
                 dataresult[cmd] = ''
                 continue
             
             dp = self.dataPoints[cmd]
             
-            if not units.has_key(dp['unitid']):
+            if units not in dp['unitid']:
                 units[dp['unitid']] = {}
-            if not units[dp['unitid']].has_key(dp['type']):
+            if units[dp['unitid']] not in dp['type']:
                 units[dp['unitid']][dp['type']] = []
             for addr in range(dp['address'], dp['address'] + getValueTypeLenWords(dp['valuetype'])):
                 if not addr in units[dp['unitid']][dp['type']]:
@@ -283,7 +283,7 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
                 units[uid][type] = unittyperesults
                 
         for cmd in cmds:
-            if not self.dataPoints.has_key(cmd):
+            if self.dataPoints not in cmd:
                 continue
             
             dp = self.dataPoints[cmd]
@@ -291,7 +291,7 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
             tempres = []
             tempreslen = getValueTypeLenWords(dp['valuetype'])
             for addr in range(dp['address'], dp['address'] + tempreslen):
-                if units[dp['unitid']][dp['type']].has_key(addr):
+                if units[dp['unitid']][dp['type']] in addr:
                     tempres.append(units[dp['unitid']][dp['type']][addr])
             if len(tempres) < tempreslen:
                 self.Log("ERROR: Modbus query results do not contain value for unitid %d address %d" % (dp['unitid'], dp['address']))

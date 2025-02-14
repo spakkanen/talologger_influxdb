@@ -52,8 +52,6 @@ import string
 from modules.core import threads
 from modules.core import configuration
 from modules.core import log
-from __builtin__ import False
-
 
 ###########################################################################
 
@@ -146,17 +144,17 @@ class Store(configuration.Configurable, log.Logging):
                 mname = None
                 posname = None
                 storepos = None
-                if string.find(filter, ':') < 0:
+                if filter.find(':') < 0:
                     return False
-                tempnames = string.split(filter, ':')
+                tempnames = filter.split(':')
                 if len(tempnames) == 2:
-                    mname = string.strip(tempnames[0])
-                    posname = string.strip(tempnames[1])
+                    mname = tempnames[0].strip()
+                    posname = tempnames[1].strip()
                     storepos = posname
                 elif len(tempnames) == 3:
-                    mname = string.strip(tempnames[0])
-                    posname = string.strip(tempnames[1])
-                    storepos = string.strip(tempnames[2])
+                    mname = tempnames[0].strip()
+                    posname = tempnames[1].strip()
+                    storepos = tempnames[2].strip()
                 else:
                     return False
                 if mname == self.getModuleName() and posname not in tempfilterkeys:

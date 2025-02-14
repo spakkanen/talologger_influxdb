@@ -50,7 +50,7 @@ LOCKFILENAME_PREFIX = tempfile.gettempdir() + os.sep + 'lock_'
 
 class LockFile(object):
     def __init__(self, fname):
-        self.lockfilename = LOCKFILENAME_PREFIX + string.replace(os.path.realpath(fname), os.sep, '_')
+        self.lockfilename = LOCKFILENAME_PREFIX + os.path.realpath(fname).replace(os.sep, '_')
         self.ihaveit = 0
         self.lockfile = None
 

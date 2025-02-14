@@ -120,7 +120,7 @@ class ModbusClientTCP(ModbusClient):
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             self.sock.connect((self.ipAddress, self.port))
             self.sock.settimeout(0.1)
-        except Exception, e:
+        except Exception as e:
             self.Log("ERROR: Cannot open TCP connection to %s port %d" % (self.ipAddress, self.port))
             self.Debug("EXCEPTION: %s" % e.__str__())
             self.sock = None
@@ -214,7 +214,7 @@ class ModbusClientSerial(ModbusClient):
         self.baudrate = rate
 
     def setParity(self, par):
-        par = string.strip(string.upper(par))
+        par = par.strip().upper()
         if par == 'E' or par == 'EVEN':
             self.parity = serial.PARITY_EVEN
         elif par == 'O' or par == 'ODD':
@@ -507,10 +507,10 @@ class ModbusSlaveSerialRTUModbusListener(ModbusClientSerial, threads.Thread):
                     if functionCode in [0x05, 0x06, 0x0F, 0x10]:
                         self.handleWriteFrame(unitId, functionCode, frame)
 
-        except Exception, e:
+        except Exception as e:
             self.Log("Exception: " + e.__str__())
             self.setFail()
-        except IOError, ioe:
+        except IOError as ioe:
             self.Log("IOError: " + ioe.__str__())
             self.setFail()
 

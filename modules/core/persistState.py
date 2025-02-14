@@ -30,7 +30,7 @@
 # Imports
 
 import sys, os, string
-import cPickle
+import _pickle as cPickle
 import json, tempfile
 
 from modules.core import log

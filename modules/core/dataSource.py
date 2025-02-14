@@ -72,7 +72,7 @@ class DataSourceThread(threads.Thread):
     def getMissingKeys(self, data):
         mkeys = []
         for cmd in self.commands:
-            if not data.has_key(cmd):
+            if data not in cmd:
                 mkeys.append(cmd)
         return mkeys 
 

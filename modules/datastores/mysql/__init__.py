@@ -13,7 +13,16 @@
 
 # Imports
 
-import storeDb
+try:
+  import os, sys
+
+  dir_path = os.path.dirname(os.path.realpath(__file__))
+  parent_dir_path = os.path.abspath(os.path.join(dir_path, os.pardir))
+  sys.path.insert(0, parent_dir_path + "/mysql")
+
+  import storeDb
+except ImportError as e:
+    print('Relative import failed. Path: '+__name__+'. ImportError: ', e)
 
 # Module definitions
 # __all__ = []

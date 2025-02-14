@@ -7,25 +7,17 @@
 # License:         Donationware, see attached LICENSE file for more 
 #                  information
 #
-# Author:          Olli Lammi (olammi@iki.fi)
+# Author:          Saku Pakkanen (saku.pakkanen@gmail.com)
 #
 # Version:         1.0i
 #
-# Date:            03.01.2017
+# Date:            10.02.2025
 #
 # Description:     Data Store class to store logged data values into a
-#                  MySql database.
+#                  InfluxDB database.
 #                  
 # Requirements:    Python interpreter 2.4 or newer (www.python.org)
 #                  (tested with 2.4.3)
-# 
-#                  MySQL-python library (MySQLdb) 
-#                  (http://sourceforge.net/projects/mysql-python)
-#
-#                    or 
-#                   
-#                  MySQL Connector/Python (mysql.connector)
-#                  (https://dev.mysql.com/doc/connector-python/en/)
 #
 ###########################################################################
 
@@ -34,11 +26,11 @@
 from modules.core import store
 from modules.core import configuration
 
-# MySQLdb module, not loaded until init of DBStore class instance
-MySQLdb = None
+# InfluxDB module, not loaded until init of DBStore class instance
+InfluxDB = None
 
-# MySQL.connector module, not loaded until init of DBStore class instance
-MySQLconn = None
+# InfluxDB.connector module, not loaded until init of DBStore class instance
+InfluxDBconn = None
 
 
 ###########################################################################
@@ -66,7 +58,6 @@ class DBStore(store.Store):
     
         self.TIMECOL_IS_TIMESTAMP_TYPE = 0
         self.POSITIONS = {}
-        self.USE_MYSQL_CONNECTOR = 0
 
     def handleConfiguration(self, conf):
         if not self.initStoreFilters(conf):
@@ -74,7 +65,7 @@ class DBStore(store.Store):
         
         self.DB_HOST = conf.getValue('HOST', '', self.getModuleName())
         try:
-            self.DB_PORT = int(conf.getValue('PORT', '3306', self.getModuleName()))
+            self.DB_PORT = int(conf.getValue('PORT', '8086', self.getModuleName()))
         except:
             return (0, 'Invalid DB port value.')
         self.DB_USER = conf.getValue('USER', '', self.getModuleName())
@@ -102,40 +93,23 @@ class DBStore(store.Store):
         else:
             return (-1, 'Invalid DB schema version.')
 
-        try:
-            self.USE_MYSQL_CONNECTOR = conf.isTrue('USE_MYSQL_CONNECTOR', self.getModuleName())
-        except:
-            self.USE_MYSQL_CONNECTOR = 0
-
         return (1, '')
 
     def initConfiguration(self):
-        if self.USE_MYSQL_CONNECTOR:
-            try:
-                global MySQLconn
-                MySQLconn = __import__('mysql', globals(), locals(), ['connector'])
-            except Exception as e:
-                print("Exception: ", str(e))
-                self.Log("ERROR: Error loading database module mysql.connector")
-                return (0, 'DBStore: Error loading databse module mysql.connector')
-        else:
-            try:
-                global MySQLdb
-                MySQLdb = __import__('MySQLdb') 
-            except Exception as e:
-                print("Exception: ", str(e))
-                self.Log("ERROR: Error loading database module MySQLdb")
-                return (0, 'DBStore: Error loading databse module MySQLdb')
+        try:
+          global InfluxDB
+          InfluxDB = __import__('influxdb_client') 
+        except Exception as e:
+          print("Exception: ", str(e))
+          self.Log("ERROR: Error loading database module InfluxDB")
+          return (0, 'DBStore: Error loading databse module InfluxDB')
         
         status = 0
         sqlstmt = ""
         try:
-            if self.USE_MYSQL_CONNECTOR:
-                db = MySQLconn.connector.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                     password=self.DB_PASSWD, database=self.DB_NAME, consume_results=True)
-            else:
-                db = MySQLdb.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                     passwd=self.DB_PASSWD, db=self.DB_NAME)
+            db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
+              passwd=self.DB_PASSWD, db=self.DB_NAME)
+
             cur = db.cursor()
             if self.DB_SCHEMA == 1:
                 sqlstmt = CREATE_TALO_DATA_1
@@ -173,12 +147,9 @@ class DBStore(store.Store):
             self.POSITIONS = {}
             sqlstmt = ""
             try:
-                if self.USE_MYSQL_CONNECTOR:
-                    db = MySQLconn.connector.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                         password=self.DB_PASSWD, database=self.DB_NAME)
-                else:
-                    db = MySQLdb.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                         passwd=self.DB_PASSWD, db=self.DB_NAME)
+                db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
+                  passwd=self.DB_PASSWD, db=self.DB_NAME)
+                
                 cur = db.cursor()
                 sqlstmt = "SELECT id, position_name FROM talo_positions"
                 cur.execute(sqlstmt)
@@ -208,21 +179,18 @@ class DBStore(store.Store):
                         toadd.append(val[0])
                                 
                 try:
-                    if self.USE_MYSQL_CONNECTOR:
-                        db = MySQLconn.connector.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                         password=self.DB_PASSWD, database=self.DB_NAME)                        
-                    else:
-                        db = MySQLdb.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                         passwd=self.DB_PASSWD, db=self.DB_NAME)
-                    cur = db.cursor()
-                    for col in toadd:
-                        sqlstmt = "INSERT INTO talo_positions (position_name) VALUES ('"
-                        sqlstmt = sqlstmt + col
-                        sqlstmt = sqlstmt + "')"
-                        cur.execute(sqlstmt)
-                    cur.close()
-                    db.commit()
-                    db.close()
+                  db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
+                    passwd=self.DB_PASSWD, db=self.DB_NAME)
+                  
+                  cur = db.cursor()
+                  for col in toadd:
+                      sqlstmt = "INSERT INTO talo_positions (position_name) VALUES ('"
+                      sqlstmt = sqlstmt + col
+                      sqlstmt = sqlstmt + "')"
+                      cur.execute(sqlstmt)
+                  cur.close()
+                  db.commit()
+                  db.close()
                 except:
                     self.Log("ERROR: Error in database operation, SQL: " + sqlstmt)
                     self.POSITIONS = {}
@@ -231,12 +199,9 @@ class DBStore(store.Store):
 
         sqlstmt = ""
         try:
-            if self.USE_MYSQL_CONNECTOR:
-                db = MySQLconn.connector.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                     password=self.DB_PASSWD, database=self.DB_NAME)
-            else:
-                db = MySQLdb.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                                     passwd=self.DB_PASSWD, db=self.DB_NAME)
+            db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
+              passwd=self.DB_PASSWD, db=self.DB_NAME)
+            
             if self.TIMECOL_IS_TIMESTAMP_TYPE:
                 cur = db.cursor()
                 sqlstmt = "set time_zone = \'+0:00\'"
@@ -294,12 +259,11 @@ class DBStore(store.Store):
 
     @staticmethod
     def getModuleTypeName():
-        return 'MYSQLDB'
+        return 'INFLUXDB'
 
     @staticmethod
     def getAllowedConfigurationKeys():
-        return (['HOST', 'PORT', 'USER', 'PASSWD', 'NAME', 'TABLE', 'TIMECOL', 'DB_SCHEMA_VERSION', 'USE_MYSQL_CONNECTOR'], [])
-
+        return (['HOST', 'PORT', 'USER', 'PASSWD', 'NAME', 'TABLE', 'TIMECOL', 'DB_SCHEMA_VERSION'], [])
 
 ###########################################################################
 
@@ -309,4 +273,3 @@ def checkDBValue(val):
     if (val and len(val) > 0):
         return val
     return "NULL"
-

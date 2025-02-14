@@ -42,9 +42,9 @@ HELP_TEXT = """
 #
 # Author:          Olli Lammi (olammi@iki.fi)
 #
-# Version:         1.8d
+# Version:         2.0
 #
-# Date:            01.02.2024
+# Date:            14.02.2025
 #
 # Functions:       -
 #                   
@@ -101,6 +101,7 @@ HELP_TEXT = """
 #                    + SQLite3 database files
 #                    + ThingSpeak cloud
 #                    + MQTT broker
+#                    + InfluxDB database
 #
 # Requirements:    Python interpreter 2.7 or newer (www.python.org).
 #                  Series 3.X Python not supported.
@@ -144,7 +145,8 @@ HELP_TEXT = """
 import sys, os
 import string, re, time
 import traceback
-import platform, urllib2
+import platform
+import urllib.request as urllib2
 import subprocess
 
 from modules.core import threads
@@ -155,8 +157,6 @@ from modules.core import store
 from modules.core import virtualMeasures
 from modules.core import persistState
 
-from modules.core import sourceDummy
-
 from modules.datasources import *
 
 from modules.datastores import *
@@ -165,7 +165,7 @@ from modules.datastores import *
 
 # Constants
 
-VERSION = "v1.8d"
+VERSION = "v2.0"
 
 DEFAULT_LOG_INTERVAL = 120
 DEFAULT_LOG_INTERVAL_LIMIT = 5
@@ -234,8 +234,8 @@ class TaloLoggerThreadMaster(log.Logging, dataSource.DataSourceListener):
             self.inqueue_item.append([type, val, timeval, initialdata])
             temp = {}
             for v in val:
-                temp2 = string.split(v, '.', 1)
-                if not temp.has_key(temp2[0]):
+                temp2 = v.split('.', 1)
+                if str(temp) not in temp2[0]:
                     temp[temp2[0]] = [ temp2[1] ]
                 else:
                     temp[temp2[0]].append(temp2[1])
@@ -310,7 +310,7 @@ class TaloLoggerThreadLogger(threads.Thread, log.Logging):
                             self.myMaster.dataReceived(temp[0], tempdata, temp[2])
                     else:
                         time.sleep(1)
-            except Exception, e:
+            except Exception as e:
                 traceback.print_exc(file=sys.stdout)
                 self.Log("Exception: " + e.__str__())
                 self.terminated = 1
@@ -374,7 +374,7 @@ class TaloLoggerThreadStore(threads.Thread, log.Logging, persistState.StatePersi
                         self.myMaster.inq_lock.free()
                 if not self.terminated:
                     time.sleep(1)
-            except Exception, e:
+            except Exception as e:
                 traceback.print_exc(file=sys.stdout)
                 self.Log("Exception: " + e.__str__())
                 self.terminated = 1
@@ -455,7 +455,7 @@ class ReleasedVersionChecker(threads.Thread, log.Logging):
         if len(res) <= 0:
             return
     
-        res = string.strip(string.split(res[0], '\n')[0])
+        res = res[0].split('\n')[0].strip()
         if len(res) <= 0:
             return
     
@@ -492,7 +492,7 @@ def runPhaseCommand(cmd, reload, result, log):
             log.Debug("Reloading logging cycle state after command: " + cmd)
             try:
                 persistState.loadCycleState(resultfile, result)
-            except Exception, e:
+            except Exception as e:
                 log.Log("ERROR: Unable to load logging cycle state after command: " + cmd + " (Exception: " + str(e) + ")")
         else:
             log.Debug("NOTE: Logging cycle command returned non zero status, not reloading state data.")
@@ -531,12 +531,12 @@ def CheckPythonVersion():
     version = platform.python_version_tuple()
     # Require Python 2.7 or newer.
     try:
-        if int(version[0]) != 2 or int(version[1]) < 7:
-            print "ERROR: Invalid Python version to run taloLogger. Required Python series 2 newer or 2.7."
-            print "       Detected Python version: %s.%s.%s" % version
+        if int(version[0]) != 3:
+            print("ERROR: Invalid Python version to run taloLogger. Required Python version 3.")
+            print("       Detected Python version: %s.%s.%s" % version)
             sys.exit(1)
     except:
-        print "Error determining Python version."
+        print("Error determining Python version.")
     return
 
 def HUPhandler(signum, frame):
@@ -558,11 +558,11 @@ def INThandler(signum, frame):
   return
 
 def GetModuleTypeAndName(str):
-    if string.find(str, ':') < 0:
+    if str.find(':') < 0:
         return ('', '')
-    [mtype, mname] = string.split(str, ':', 1)
-    mtype = string.strip(mtype)
-    mname = string.strip(mname)
+    [mtype, mname] = str.split(':', 1)
+    mtype = mtype.strip()
+    mname = mname.strip()
     return (mtype, mname)
 
 def GetDataSourceClass(mtype):
@@ -632,11 +632,11 @@ def main():
 
   (confstat, errmsg) = conf.loadFile(CONFIGURATION_FILE)
   if confstat == 0:
-      print "ERROR: Cannot read configuration file: " + CONFIGURATION_FILE
+      print("ERROR: Cannot read configuration file: " + CONFIGURATION_FILE)
       sys.exit(1)
   elif confstat == -1:
-      print "ERROR: Error reading configuration file: " + CONFIGURATION_FILE
-      print errmsg
+      print("ERROR: Error reading configuration file: " + CONFIGURATION_FILE)
+      print(errmsg)
       sys.exit(1)
 
   if logconsole:
@@ -651,7 +651,7 @@ def main():
 
   pstate_dir = conf.getValue('PERSISTENT_STATE_DIRECTORY', '')
   if pstate_dir:
-      pstate_dir = string.strip(pstate_dir)
+      pstate_dir = pstate_dir.strip()
       if len(pstate_dir) > 0:
           LOG.log("Persistent state directory: " + pstate_dir)
           if not os.path.isdir(pstate_dir):
@@ -677,7 +677,7 @@ def main():
           
       sourceClass = GetDataSourceClass(mtype)
       if sourceClass == None:
-          LOG.log("ERROR: Invalid datasource type in DATASOURCE definition: " + st)
+          LOG.log("ERROR: Invalid datasource type in DATASOURCE definition: " + str(st))
           sys.exit(1)
       sources.append( sourceClass(mname) )          
                     
@@ -728,16 +728,16 @@ def main():
   measurepositions = []
   measures = []
   for item in conf.getValue('MEASURE', []):
-      temps = string.split(item, ':', 1)
+      temps = item.split(':', 1)
       if len(temps) < 2:
           LOG.log("ERROR: Invalid MEASURE configuration: " + item)
           sys.exit(1)          
-      key = string.strip(temps[0])
-      value = string.strip(temps[1])
+      key = temps[0].strip()
+      value = temps[1].strip()
       if len(key) <= 0 or len(value) <= 0:
           LOG.log("ERROR: Invalid MEASURE configuration: " + item)
           sys.exit(1)
-      if len( string.split(value, '.', 1) ) < 2:
+      if len( value.split('.', 1) ) < 2:
           LOG.log("ERROR: Invalid MEASURE configuration: " + item)
           sys.exit(1)
       if key in measurepositions:
@@ -757,16 +757,16 @@ def main():
   virtualpositions = []
   virtuals = []
   for item in conf.getValue('VIRTUAL', []):
-      temps = string.split(item, ':', 2)
+      temps = item.split(':', 2)
       if len(temps) < 3:
           LOG.log("ERROR: Invalid VIRTUAL configuration: " + item)
           sys.exit(1)          
-      key = string.strip(temps[0])
+      key = temps[0].strip()
       try:
-          type = int(string.strip(temps[1]))
+          type = int(temps[1].strip())
       except:
           type = 0
-      value = string.strip(temps[2])
+      value = temps[2].strip()
       if type < 1 or type > 1:
           LOG.log("ERROR: Invalid VIRTUAL configuration type: " + item)
           sys.exit(1)          
@@ -784,25 +784,25 @@ def main():
   for phase in cmd_phases:
       commands[phase] = []
   for item in conf.getValue('COMMAND', []):
-      temps = string.split(item, ':', 3)
+      temps = item.split(':', 3)
       if len(temps) < 3:
           LOG.log("ERROR: Invalid COMMAND configuration: " + item)
           sys.exit(1)          
 
-      phase = string.upper(string.strip(temps[0]))
+      phase = temps[0].strip().upper()
       if not phase in cmd_phases:
           LOG.log("ERROR: Invalid COMMAND phase: " + item)
           sys.exit(1)
 
       try:
-          type = int(string.strip(temps[1]))
+          type = int(temps[1].strip())
       except:
           type = -1
       if not type in [0, 1]:
           LOG.log("ERROR: Invalid COMMAND type: " + item)
           sys.exit(1)
 
-      cmd = string.strip(temps[2])
+      cmd = temps[2].strip()
       if len(cmd) <= 0:
           LOG.log("ERROR: Missing COMMAND command: " + item)
           sys.exit(1)
@@ -877,18 +877,18 @@ def main():
 
 
 def Usage():
-    print 'USAGE:  python taloLogger.py --help'
-    print '        python taloLogger.py [-d] [--nodaemon] [-v] [-l] [-f configuration_file]'
+    print("USAGE:  python taloLogger.py --help")
+    print("        python taloLogger.py [-d] [--nodaemon] [-v] [-l] [-f configuration_file]")
 
 
 def Help():
-    temps = string.split(HELP_TEXT, '\n')
+    temps = HELP_TEXT.split('\n')
     for temp in temps:
         if len(temp) > 0 and temp[0] == '#':
             temp = temp[1:]
         if len(temp) > 0 and temp[0] == ' ':
             temp = temp[1:]
-        print temp
+        print(temp)
  
 
 ###########################################################################

@@ -92,13 +92,13 @@ class Logger(configuration.Configurable):
           if len(self.ID) > 0:
               temps = temps + self.ID + ': '
           if self.CONSOLE:
-              print temps + msg
+              print(temps + msg)
           else:
               ofile = open(self.FNAME, 'a')
               ofile.write(temps + msg + "\n")
               ofile.close()
       except:
-          print "Error writing log."
+          print("Error writing log.")
           return
 
   def debug(self, msg):

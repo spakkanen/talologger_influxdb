@@ -15,15 +15,6 @@
 #
 # Description:     TaloLogger configuration wrapper for NibeSerial library.
 #                  
-# Version history: ** 11.10.2011 v1.4e (Olli Lammi) **
-#                  Moved from main taloLogger application module. 
-#
-#                  ** 13.02.2012 v1.4i (Olli Lammi) **
-#                  Multisupport
-#
-#                  ** 06.01.2013 v1.4j (Olli Lammi) **
-#                  Changed to support controlled Thread.
-#
 ###########################################################################
 
 # Imports
@@ -32,7 +23,6 @@ from modules.core import configuration
 from modules.core import dataSource
 
 import nibeSerial
-
 
 ###########################################################################
 

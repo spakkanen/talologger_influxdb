@@ -123,43 +123,43 @@ class Configuration(object):
             return (0, '')
 
         for line in lines:
-            line = string.strip(string.split(line, '\n')[0])
+            line = line.split('\n')[0].strip()
             if len(line) <= 0 or line[0] == '#':
                 continue
 
             if line[0] == '@':
                 line = line[1:]
-                lineparts = string.split(line, '=', 1)
+                lineparts = line.split('=', 1)
                 if len(lineparts) > 1:
                     module = ''
-                    key = string.strip(lineparts[0])
-                    if string.find(key, ':') >= 0:
-                        [module, key] = string.split(key, ':', 1)
-                        module = string.strip(module)
-                        key = string.strip(key)
+                    key = lineparts[0].strip()
+                    if key.find(':') >= 0:
+                        [module, key] = key.split(':', 1)
+                        module = module.strip()
+                        key = key.strip()
                     elif not key in self.allowedlistkeys:
                         return (-1, "Invalid configuration key: @" + key)
-                    value = string.strip(lineparts[1])
-                    if not self.data.has_key(module):
+                    value = lineparts[1].strip()
+                    if module not in self.data:
                         self.data[module] = {}
-                    if not self.data[module].has_key(key):
+                    if key not in self.data[module]:
                         self.data[module][key] = [] 
                     self.data[module][key].append(value)
                 else:
                     return (-1, "Invalid configuration line: @" + line)
             else:
-                lineparts = string.split(line, '=', 1)
+                lineparts = line.split('=', 1)
                 if len(lineparts) > 1:
                     module = ''
-                    key = string.strip(lineparts[0])
-                    if string.find(key, ':') >= 0:
-                        [module, key] = string.split(key, ':', 1)
-                        module = string.strip(module)
-                        key = string.strip(key)
+                    key = lineparts[0].strip()
+                    if key.find(':') >= 0:
+                        [module, key] = key.split(':', 1)
+                        module = module.strip()
+                        key = key.strip()
                     elif not key in self.allowedkeys:
                         return (-1, "Invalid configuration key: " + key)
-                    value = string.strip(lineparts[1])
-                    if not self.data.has_key(module):
+                    value = lineparts[1].strip()
+                    if module not in self.data:
                         self.data[module] = {}
                     self.data[module][key] = value
                 else:
@@ -173,7 +173,7 @@ class Configuration(object):
     def hasKey(self, key, module = ''):
         if not self.hasModule(module):
             return 0
-        return self.data[module].has_key(key)
+        return key in self.data[module]
 
     def getValue(self, key, default, module = ''):
         if self.hasKey(key, module):
@@ -189,12 +189,12 @@ class Configuration(object):
     def isTrue(self, key, module = ''):
         if not self.hasKey(key, module):
             return 0
-        if string.lower(self.data[module][key]) == 'true':
+        if self.data[module][key].lower() == 'true':
             return 1
         return 0
     
     def hasModule(self, module):
-        return self.data.has_key(module)
+        return module in self.data
     
     def checkConfigurationKeys(self, cfable):
         if not self.hasModule(cfable.getModuleName()):
@@ -210,6 +210,6 @@ class Configuration(object):
                     return (-1, "@%s:%s" % (cfable.getModuleName(), key))
             else:
                 if not key in cnorm:
-                    print self.data
+                    print(self.data)
                     return (-1, "%s:%s" % (cfable.getModuleName(), key))
         return (1, '')

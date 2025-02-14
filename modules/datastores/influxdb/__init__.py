@@ -7,8 +7,7 @@
 # License:         Donationware, see attached LICENSE file for more 
 #                  information
 #
-# Author:          Olli Lammi (olammi@iki.fi)
-# Updater:         Saku Pakkanen (saku.pakkanen@gmail.com)
+# Author:          Saku Pakkanen (saku.pakkanen@gmail.com)
 #
 ###########################################################################
 
@@ -19,9 +18,9 @@ try:
 
   dir_path = os.path.dirname(os.path.realpath(__file__))
   parent_dir_path = os.path.abspath(os.path.join(dir_path, os.pardir))
-  sys.path.insert(0, parent_dir_path + "/modbus")
+  sys.path.insert(0, parent_dir_path + "/influxdb")
 
-  import sourceModbus
+  import storeDb
 except ImportError as e:
     print('Relative import failed. Path: '+__name__+'. ImportError: ', e)
 

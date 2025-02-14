@@ -58,11 +58,11 @@ class NibeBusRS485Conf(log.Logging, configuration.Configurable, dataSource.DataS
         return self.getModuleName()
 
     def handleConfiguration(self, conf):
-        self.clientType = string.upper(conf.getValue('TYPE', '', self.getModuleName()))
+        self.clientType = conf.getValue('TYPE', '', self.getModuleName()).upper()
         if not self.clientType in ['SERIAL', 'UDP']:
             return (-1, "Unknown or no TYPE parameter for Nibe Bus module.")
 
-        self.deviceName = string.upper(conf.getValue('DEVICE', 'DEFAULT', self.getModuleName()))
+        self.deviceName = conf.getValue('DEVICE', 'DEFAULT', self.getModuleName()).upper()
         self.portName = conf.getValue('SERIAL_PORT', '', self.getModuleName())
         self.listenAddress = conf.getValue('LISTENADDRESS', '0.0.0.0', self.getModuleName())
         try:
@@ -82,7 +82,7 @@ class NibeBusRS485Conf(log.Logging, configuration.Configurable, dataSource.DataS
             self.nibeComm = nibeBusRS485.NibeRS485Serial(self.portName, self.deviceName)
         elif self.clientType == 'UDP':
             self.nibeComm = nibeBusRS485.NibeRS485UDP(self.listenAddress, self.udpPort, self.deviceName)
-            if self.queryAddress != None and len(string.strip(self.queryAddress)) > 0:
+            if self.queryAddress != None and len(self.queryAddress.strip()) > 0:
                 self.nibeComm.setQueryPeer(self.queryAddress, self.queryPort)
 
         if not self.nibeComm.startModule():

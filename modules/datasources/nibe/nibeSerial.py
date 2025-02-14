@@ -26,35 +26,6 @@
 #                  Python Serial Port Extension: pySerial  
 #                  (http://pyserial.wiki.sourceforge.net/pySerial)
 #
-# Version history: ** 11.04.2011 v0.1a (Olli Lammi) **
-#                  First test version. Implemented based on research by 
-#                  Mikko Tuominen. 
-#
-#                  ** 03.10.2011 v0.1b (Olli Lammi) **
-#                  Altered the protocol logic interpretation.
-#
-#                  ** 19.10.2011 v0.1c (Olli Lammi) **
-#                  Changes to serial parameters.
-#
-#                  ** 20.10.2011 v0.1d (Olli Lammi) **
-#                  Debugging version.
-#
-#                  ** 21.10.2011 v0.1e (Olli Lammi) **
-#                  Debugging version with again rewritten protocol
-#                  logic.
-#
-#                  ** 24.10.2011 v0.1f (Olli Lammi) **
-#                  Small changes to logic.
-#
-#                  ** 25.10.2011 v0.1g (Olli Lammi) **
-#                  Release candidate 1.
-#
-#                  ** 01.11.2011 v0.1h (Olli Lammi) **
-#                  Added write timeout handling.
-#
-#                  ** 06.01.2013 v0.1i (Olli Lammi) **
-#                  Changed to controlled Thread.
-#
 ###########################################################################
 
 # Imports
@@ -299,10 +270,10 @@ class NibeSerial(threads.Thread, log.Logging):
                 if self.isRunning():
                     time.sleep(SLEEP_AFTER_LOAD)
 
-        except Exception, e:
+        except Exception as e:
             self.Log("Exception: " + e.__str__())
             self.setFail()
-        except IOError, ioe:
+        except IOError as ioe:
             self.Log("IOError: " + ioe.__str__())
             self.setFail()
 
@@ -339,7 +310,7 @@ class NibeSerial(threads.Thread, log.Logging):
             self.typelens[t[0]] = TYPE_LENGTHS[t[2]]
         
     def openPort(self):
-        if not NIBE_DEVICES.has_key(self.NIBE_DEVICE):
+        if NIBE_DEVICES not in self.NIBE_DEVICE:
             self.Log("ERROR: Invalid NIBE device type: " + self.NIBE_DEVICE)
             return 0
 
@@ -423,7 +394,7 @@ class NibeSerial(threads.Thread, log.Logging):
 
         res = None
         if self.data_lock.lock_wait():
-            if self.data.has_key(id):
+            if self.data in id:
                 temp = self.data[id]
                 if (time.time() - temp[0]) <= DATAVALID:
                     res = temp[1]

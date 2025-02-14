@@ -92,7 +92,7 @@ class NibeModbusConf(log.Logging, configuration.Configurable, dataSource.DataSou
                 nibeType = NIBE_TYPE_MAP[register[2]]
                 holdingregisters.append("%s:%d:%d:%s:%s" % (register[1], self.modbusUnitId, register[0], nibeType[0], nibeType[1]))
             except:
-                print "Not found register: " + str(register[2])
+                print("Not found register: ", str(register[2]))
         
         self.privateConf.setValue('HOLDINGREGISTER', holdingregisters, self.getModuleName())
 

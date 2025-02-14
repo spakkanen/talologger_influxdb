@@ -33,12 +33,12 @@
 #                  reserved for too long (timeout).
 #
 ###########################################################################
-
 # Imports
+###########################################################################
 
 import sys
-import thread, signal, time
-
+import threading as thread
+import signal, time
 
 ###########################################################################
 
@@ -46,17 +46,16 @@ import thread, signal, time
 
 class Lock(object):
     def __init__(self):
-        self.mylock = thread.allocate_lock()
+        self.mylock = thread.Lock();
 
     def lock_wait(self):
         return self.mylock.acquire()
 
     def lock_immediate(self):
-        return self.mylock.acquire(0)
+      return self.mylock.acquire(0)
 
     def free(self):
         self.mylock.release()
-
 
 RUNNING = 0
 TERMINATING = 1
@@ -72,10 +71,9 @@ class Thread(object):
         if self.lock.lock_immediate():
             self.setRunning()
             try:
-                self.tid = thread.start_new_thread(self.main, (self,))
+                self.tid = thread.Thread(target=self.main, args=(self,), daemon=True)
             except:
-                print "Error starting thread:", sys.exc_info()[0], sys.exc_info()[1]
-                sys.exc_clear()
+                print("Error starting thread.")
                 self.setTerminated()
                 self.lock.free()
                 return 0
@@ -85,15 +83,16 @@ class Thread(object):
 
     def main(self, starter):
         try:
+            print("Starting thread name: ", starter)
             starter.run()
         except:
-            print "Error running thread (thread id " + `self.tid` + "):", sys.exc_info()[0], sys.exc_info()[1]
-            sys.exc_clear()
+            print("Error running thread id: ", str(self.tid))
+
         starter.setTerminated()
         starter.lock.free()        
 
     def run(self):
-        print "Unimplemented thread run method."
+        print("Unimplemented thread run method.")
 
     def wait(self):
         self.lock.lock_wait()
@@ -193,7 +192,7 @@ class MonitoredLock(Lock, Thread):
                 if time.time() - self.locktime > self.TIMEOUT:
                     if self.mylock.locked():
                         self.locktime = 0
-                        print "Freeing timed out lock..."
+                        print("Freeing timed out lock...")
                         try:
                             self.mylock.release()
                         except:
