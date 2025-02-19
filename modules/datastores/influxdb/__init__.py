@@ -20,7 +20,7 @@ try:
   parent_dir_path = os.path.abspath(os.path.join(dir_path, os.pardir))
   sys.path.insert(0, parent_dir_path + "/influxdb")
 
-  import storeDb
+  import storeInfluxDb
 except ImportError as e:
     print('Relative import failed. Path: '+__name__+'. ImportError: ', e)
 

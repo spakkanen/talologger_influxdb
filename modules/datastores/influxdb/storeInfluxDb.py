@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-
 ###########################################################################
 # 
-# File:            storeDb.py
+# File:            storeInfluxDb.py
 #
 # License:         Donationware, see attached LICENSE file for more 
 #                  information
@@ -23,6 +23,9 @@
 
 # Imports
 
+from influxdb_client import InfluxDBClient, Point, Dialect
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 from modules.core import store
 from modules.core import configuration
 
@@ -32,6 +35,7 @@ InfluxDB = None
 # InfluxDB.connector module, not loaded until init of DBStore class instance
 InfluxDBconn = None
 
+client = None
 
 ###########################################################################
 
@@ -55,7 +59,7 @@ CREATE_TALO_POSITIONS_1 = "CREATE TABLE IF NOT EXISTS talo_positions (" + \
 class DBStore(store.Store):
     def __init__(self, modname):
         store.Store.__init__(self, modname)
-    
+        
         self.TIMECOL_IS_TIMESTAMP_TYPE = 0
         self.POSITIONS = {}
 
@@ -63,13 +67,10 @@ class DBStore(store.Store):
         if not self.initStoreFilters(conf):
             return (0, "Invalid store filter.")
         
-        self.DB_HOST = conf.getValue('HOST', '', self.getModuleName())
-        try:
-            self.DB_PORT = int(conf.getValue('PORT', '8086', self.getModuleName()))
-        except:
-            return (0, 'Invalid DB port value.')
-        self.DB_USER = conf.getValue('USER', '', self.getModuleName())
-        self.DB_PASSWD = conf.getValue('PASSWD', '', self.getModuleName())
+        self.DB_URL = conf.getValue('URL', '', self.getModuleName())
+        self.DB_TOKEN = conf.getValue('TOKEN_KEY', '', self.getModuleName())
+        self.DB_ORG = conf.getValue('ORG', '', self.getModuleName())
+        
         self.DB_NAME = conf.getValue('NAME', '', self.getModuleName())
         self.DB_TABLE = conf.getValue('TABLE', '', self.getModuleName())
         self.DB_TIMECOL = conf.getValue('TIMECOL', '', self.getModuleName())
@@ -97,8 +98,7 @@ class DBStore(store.Store):
 
     def initConfiguration(self):
         try:
-          global InfluxDB
-          InfluxDB = __import__('influxdb_client') 
+          client = InfluxDBClient(url=self.DB_URL, token=self.DB_TOKEN, org=self.DB_ORG)
         except Exception as e:
           print("Exception: ", str(e))
           self.Log("ERROR: Error loading database module InfluxDB")
@@ -107,95 +107,29 @@ class DBStore(store.Store):
         status = 0
         sqlstmt = ""
         try:
-            db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-              passwd=self.DB_PASSWD, db=self.DB_NAME)
+            query_api = client.query_api()
+            tables = query_api.query('from(bucket:"data") |> range(start: -10m)')
 
-            cur = db.cursor()
-            if self.DB_SCHEMA == 1:
-                sqlstmt = CREATE_TALO_DATA_1
-                cur.execute(sqlstmt)
-                sqlstmt = CREATE_TALO_POSITIONS_1
-                cur.execute(sqlstmt)
-            sqlstmt = "SELECT " + self.DB_TIMECOL + " FROM " + self.DB_TABLE + " LIMIT 1"
-            cur.execute(sqlstmt)
-            cur.close()
-            
-            cur = db.cursor()
-            sqlstmt = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = \'%s\' AND COLUMN_NAME = \'%s\'" % (self.DB_TABLE, self.DB_TIMECOL)
-            cur.execute(sqlstmt)
-            res = cur.fetchall()
-            
-            try:
-                if res[0][0].upper() == 'TIMESTAMP':
-                    self.TIMECOL_IS_TIMESTAMP_TYPE = 1
-            except:
-                pass
-            db.close()
+            for table in tables:
+              print("saku:"+ table)
+              for record in table.records:
+                print("saku2:"+record.values)
+
+            client.close()
             status = 1
         except Exception as e:
-            print("Exception SQL Query Error: ", e)
-            self.Log("ERROR: Error in database operation, SQL: %s (%s)" % (sqlstmt, e.__str__()))
+            print("Exception Query Error: ", e)
+            self.Log("ERROR: Query Error, SQL: %s (%s)" % (sqlstmt, e.__str__()))
             status = 0
         if status:
-            self.initPositions()
             return (1, '')
         else:
             return (0, 'DBStore: Errors with database access.')
-
-    def initPositions(self):
-        if self.DB_SCHEMA == 1:
-            self.POSITIONS = {}
-            sqlstmt = ""
-            try:
-                db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                  passwd=self.DB_PASSWD, db=self.DB_NAME)
-                
-                cur = db.cursor()
-                sqlstmt = "SELECT id, position_name FROM talo_positions"
-                cur.execute(sqlstmt)
-                res = cur.fetchall()
-                cur.close()
-                db.close()
-                for row in res:
-                    self.POSITIONS[row[1]] = row[0]
-            except:
-                self.Log("ERROR: Error in database operation, SQL: " + sqlstmt)
  
     def insertDataImpl(self, timeval, values):
         if self.DB_SCHEMA == 1:
             if len(self.POSITIONS.keys()) <= 0:
                 self.initConfiguration()
-            
-            status = 1
-            for val in values:
-                if self.POSITIONS not in val[0]:
-                    status = 0
-                    break
-            if status == 0:
-                self.initPositions()
-                toadd = []
-                for val in values:
-                    if self.POSITIONS not in val[0]:
-                        toadd.append(val[0])
-                                
-                try:
-                  db = InfluxDB.connect(host=self.DB_HOST, port=self.DB_PORT, user=self.DB_USER, \
-                    passwd=self.DB_PASSWD, db=self.DB_NAME)
-                  
-                  cur = db.cursor()
-                  for col in toadd:
-                      sqlstmt = "INSERT INTO talo_positions (position_name) VALUES ('"
-                      sqlstmt = sqlstmt + col
-                      sqlstmt = sqlstmt + "')"
-                      cur.execute(sqlstmt)
-                  cur.close()
-                  db.commit()
-                  db.close()
-                except:
-                    self.Log("ERROR: Error in database operation, SQL: " + sqlstmt)
-                    self.POSITIONS = {}
-                    return 0
-                self.initPositions()
 
         sqlstmt = ""
         try:
@@ -263,7 +197,7 @@ class DBStore(store.Store):
 
     @staticmethod
     def getAllowedConfigurationKeys():
-        return (['HOST', 'PORT', 'USER', 'PASSWD', 'NAME', 'TABLE', 'TIMECOL', 'DB_SCHEMA_VERSION'], [])
+        return (['URL', 'TOKEN_KEY', 'ORG', 'NAME', 'TABLE', 'TIMECOL', 'DB_SCHEMA_VERSION'], [])
 
 ###########################################################################
 

@@ -178,7 +178,6 @@ main_terminated = 0
 
 LOG = None
 
-
 ###########################################################################
 
 # Classes
@@ -467,8 +466,6 @@ class ReleasedVersionChecker(threads.Thread, log.Logging):
                      "# \n" + \
                      "#    Current version: %s    Available release version: %s\n" % (VERSION, res) + \
                      "######################################################################")
-
-
 
 ###########################################################################
 
