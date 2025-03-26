@@ -68,20 +68,21 @@ class StatePersistCapable(object):
         fname = self.getPStateFilename()
         if fname != None:
             if not os.path.isfile(fname):
-                self.log.Log("Module state does not exist: " + fname)
+                self.log.Log("WARN: Module state does not exist: " + fname)
                 return None
             try:
                 if self.log:
                     self.log.Debug("Loading module state from: " + fname)
-                infile = file(fname, 'r')
+                infile = open(fname, 'r')
                 stateObject = cPickle.load(infile)
                 infile.close()                 
                 if self.log:
                     self.log.Log("Module state loaded.")
                 return stateObject
-            except:
+            except Exception as e:
+                print("Exception: ", e.__str__())
                 if self.log:
-                    self.log.Log("Error loading module state from " + fname)
+                    self.log.Log("ERROR: Error loading module state from " + fname)
                 return None 
         return None
     
@@ -97,7 +98,7 @@ class StatePersistCapable(object):
             try:
                 if self.log:
                     self.log.Debug("Saving module state to  " + fname)
-                outfile = file(fname, 'w')
+                outfile = open(fname, 'w')
                 cPickle.dump(stateObject, outfile)
                 outfile.close()
                 if self.log:                 
@@ -128,9 +129,9 @@ def loadCycleState(fname, state):
         for key in temp:
             skey = key
             sval = temp[key]
-            if isinstance(skey, unicode):
+            if isinstance(skey, str):
                 skey = skey.encode('utf-8')
-            if isinstance(sval, unicode):
+            if isinstance(sval, str):
                 sval = sval.encode('utf-8')
             elif isinstance(sval, float) or isinstance(sval, int):
                 sval = str(sval)

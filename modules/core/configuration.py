@@ -140,9 +140,9 @@ class Configuration(object):
                     elif not key in self.allowedlistkeys:
                         return (-1, "Invalid configuration key: @" + key)
                     value = lineparts[1].strip()
-                    if module not in self.data:
+                    if not self.data.__contains__(module):
                         self.data[module] = {}
-                    if key not in self.data[module]:
+                    if not self.data[module].__contains__(key):
                         self.data[module][key] = [] 
                     self.data[module][key].append(value)
                 else:
@@ -159,7 +159,7 @@ class Configuration(object):
                     elif not key in self.allowedkeys:
                         return (-1, "Invalid configuration key: " + key)
                     value = lineparts[1].strip()
-                    if module not in self.data:
+                    if not self.data.__contains__(module):
                         self.data[module] = {}
                     self.data[module][key] = value
                 else:
@@ -173,7 +173,7 @@ class Configuration(object):
     def hasKey(self, key, module = ''):
         if not self.hasModule(module):
             return 0
-        return key in self.data[module]
+        return self.data[module].__contains__(key)
 
     def getValue(self, key, default, module = ''):
         if self.hasKey(key, module):
@@ -194,7 +194,7 @@ class Configuration(object):
         return 0
     
     def hasModule(self, module):
-        return module in self.data
+        return self.data.__contains__(module)
     
     def checkConfigurationKeys(self, cfable):
         if not self.hasModule(cfable.getModuleName()):

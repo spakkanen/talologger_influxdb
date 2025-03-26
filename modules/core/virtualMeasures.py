@@ -55,7 +55,7 @@ def HandleVirtuals(logger, virtuals, timeval, result, prevresult):
                 expr = expr.replace('%_%TIME%_%', str(timeval))
                 
             if expr.count('%/_%TIME%_/%') > 0:
-                if prevresult in '%TIME%':
+                if prevresult.__contains__('%TIME%'):
                     expr = expr.replace('%/_%TIME%_/%', str(prevresult['%TIME%']))
                 else:
                     tempresult[key] = ""

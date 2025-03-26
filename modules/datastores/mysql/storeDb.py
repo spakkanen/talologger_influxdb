@@ -197,14 +197,14 @@ class DBStore(store.Store):
             
             status = 1
             for val in values:
-                if self.POSITIONS not in val[0]:
+                if not self.POSITIONS.__contains__(val[0]):
                     status = 0
                     break
             if status == 0:
                 self.initPositions()
                 toadd = []
                 for val in values:
-                    if self.POSITIONS not in val[0]:
+                    if not self.POSITIONS.__contains__(val[0]):
                         toadd.append(val[0])
                                 
                 try:

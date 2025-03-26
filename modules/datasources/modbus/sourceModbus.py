@@ -247,16 +247,16 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
         units = {}
 
         for cmd in cmds:
-            if self.dataPoints not in cmd:
+            if not self.dataPoints.__contains__(cmd):
                 self.Log("ERROR: Unconfigured datapoint: %s" % cmd)
                 dataresult[cmd] = ''
                 continue
             
             dp = self.dataPoints[cmd]
             
-            if units not in dp['unitid']:
+            if not units.__contains__(dp['unitid']):
                 units[dp['unitid']] = {}
-            if units[dp['unitid']] not in dp['type']:
+            if not units[dp['unitid']].__contains__(dp['type']):
                 units[dp['unitid']][dp['type']] = []
             for addr in range(dp['address'], dp['address'] + getValueTypeLenWords(dp['valuetype'])):
                 if not addr in units[dp['unitid']][dp['type']]:
@@ -283,7 +283,7 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
                 units[uid][type] = unittyperesults
                 
         for cmd in cmds:
-            if self.dataPoints not in cmd:
+            if not self.dataPoints.__contains__(cmd):
                 continue
             
             dp = self.dataPoints[cmd]
@@ -291,7 +291,7 @@ class ModbusConf(log.Logging, configuration.Configurable, dataSource.DataSource)
             tempres = []
             tempreslen = getValueTypeLenWords(dp['valuetype'])
             for addr in range(dp['address'], dp['address'] + tempreslen):
-                if units[dp['unitid']][dp['type']] in addr:
+                if units[dp['unitid']][dp['type']].__contains__(addr):
                     tempres.append(units[dp['unitid']][dp['type']][addr])
             if len(tempres) < tempreslen:
                 self.Log("ERROR: Modbus query results do not contain value for unitid %d address %d" % (dp['unitid'], dp['address']))

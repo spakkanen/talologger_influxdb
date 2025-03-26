@@ -37,7 +37,7 @@
 ###########################################################################
 
 import sys
-import threading as thread
+import threading
 import signal, time
 
 ###########################################################################
@@ -46,7 +46,7 @@ import signal, time
 
 class Lock(object):
     def __init__(self):
-        self.mylock = thread.Lock();
+        self.mylock = threading.Lock()
 
     def lock_wait(self):
         return self.mylock.acquire()
@@ -71,9 +71,10 @@ class Thread(object):
         if self.lock.lock_immediate():
             self.setRunning()
             try:
-                self.tid = thread.Thread(target=self.main, args=(self,), daemon=True)
-            except:
-                print("Error starting thread.")
+                self.tid = threading.Thread(target=self.main, args=(self,))
+                self.tid.start()
+            except Exception as e:
+                print("ERROR: Error starting thread. Exception: " + e.__str__())
                 self.setTerminated()
                 self.lock.free()
                 return 0
@@ -85,8 +86,8 @@ class Thread(object):
         try:
             print("Starting thread name: ", starter)
             starter.run()
-        except:
-            print("Error running thread id: ", str(self.tid))
+        except Exception as e:
+            print("ERROR: Error running thread id: ", str(self.tid), ", starter id: ", str(starter))
 
         starter.setTerminated()
         starter.lock.free()        

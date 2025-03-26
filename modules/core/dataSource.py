@@ -71,47 +71,52 @@ class DataSourceThread(threads.Thread):
 
     def getMissingKeys(self, data):
         mkeys = []
-        for cmd in self.commands:
-            if data not in cmd:
-                mkeys.append(cmd)
+        
+        if isinstance(self.commands, list):
+          for cmd in self.commands:
+            if not data.__contains__(cmd):
+              mkeys.append(cmd)
         return mkeys 
 
     def run(self):
         self.running = 1
-        
+        print("Started data source measures.")
         try:
             if self.datasource != None and self.listener != None and len(self.commands) > 0:
-                retries = 3
-                tempdata = {}
-                while retries > 0:
-                    mkeys = self.getMissingKeys(tempdata)
-                    if len(mkeys) > 0:
-                        if retries < 3:
-                            time.sleep(0.2)
-                        try:
-                            qdata = self.datasource.runDataSourceQueryCommand(mkeys)
-                            tempdata.update(qdata)
-                        except:
-                            pass
-                        retries = retries - 1
-                    else:
-                        break
+              retries = 3
+              tempdata = {}
+              while retries > 0:
+                  mkeys = self.getMissingKeys(tempdata)
+                  if len(mkeys) > 0:
+                      if retries < 3:
+                          time.sleep(0.2)
+                      try:
+                          qdata = self.datasource.runDataSourceQueryCommand(mkeys)
+                          tempdata.update(qdata)
+                      except:
+                          pass
+                      retries = retries - 1 
+                  else:
+                      break
                     
-                mkeys = self.getMissingKeys(tempdata)    
-                for key in mkeys:
-                    tempdata[key] = ''
-                try:
-                    self.listener.dataReceived(self.moduleid, tempdata, self.queuets)
-                except:
-                    pass
-    
+              mkeys = self.getMissingKeys(tempdata)    
+              for key in mkeys:
+                  tempdata[key] = ''
+              try:      
+                  self.listener.dataReceived(self.moduleid, tempdata, self.queuets)
+              except:
+                  pass
+  
             self.moduleid = ''
             self.queuets = 0
             self.listener = None
             self.commands = None
+        except Exception as e:
+            print("Exception: ", e.__str__())
+            self.Log("Exception: " + e.__str__())
         finally:
             self.running = 0
-
+        
 class DataSourceListener(object):
     def dataReceived(self, moduleid, data, queuets): pass
 

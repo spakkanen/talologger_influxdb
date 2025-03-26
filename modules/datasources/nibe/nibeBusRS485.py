@@ -774,6 +774,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
         self.NIBE_DEVICE = device
                         
     def handleBuffer(self, buff):
+        print("jei2###########")
         # check that the 4th byte is correct command 0x68
         if len(buff) < 4 or (buff[3] != '\x68' and buff[3] != '\x6A' and buff[3] != '\x6D'):
             self.Debug("Ignoring frame with unknown command in byte 4.")
@@ -782,6 +783,8 @@ class NibeRS485Base(threads.Thread, log.Logging):
         cmd = buff[3]
         temp = getNibeDataPart(buff)
         temp = fixNibeDataPart(temp)
+
+        print("jei###########")
         
         if cmd == '\x68':       # str(ord(cmd)) = 104.
             if self.data_lock.lock_wait():
@@ -893,7 +896,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
         if self.isQueryCapable():
             qids = []            
             for cmd in cmds:
-                if res not in cmd:
+                if not res.__contains__(cmd):
                     (id, type) = self.getNibeDevice(cmd)
                     if type != 0:
                         qids.append(id)
@@ -904,7 +907,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
                 self.waitForQueryQueues()
 
                 for cmd in cmds:
-                    if res not in cmd:
+                    if not res.__contains__(cmd):
                         (id, type) = self.getNibeDevice(cmd)
                         if type != 0:
                             temp = self.runQueryId(id)
@@ -932,7 +935,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
         res = None
         if haveLocksOutside or self.data_lock.lock_wait():
             try:
-                if self.data in id:
+                if self.data.__contains__(id):
                     temp = self.data[id]
                     if (time.time() - temp[0]) <= DATAVALID:
                         res = temp[1]
@@ -942,7 +945,7 @@ class NibeRS485Base(threads.Thread, log.Logging):
                     self.Debug("DEBUG: No data found with id " + repr(id))
                     
                 if res == None and self.isQueryCapable():
-                    if self.query_data in id:
+                    if self.query_data.__contains__(id):
                         temp = self.query_data[id]
                         if (time.time() - temp[0]) <= DATAVALID:
                             res = temp[1]
@@ -1007,8 +1010,8 @@ class NibeRS485Serial(NibeRS485Base):
     def setPort(self, port):
         self.SERPORT = port
                 
-    def run(self):        
-        try:              
+    def run(self):
+        try:             
             while self.isRunning():
                 if not self.isOpen():
                     if not self.openPort():
@@ -1024,12 +1027,16 @@ class NibeRS485Serial(NibeRS485Base):
                 res = ''
                 prevchar = ''
                 while self.isRunning():
-                    temp = self.serio.read(1)
+                    try:
+                      temp = self.serio.read(1)
+                    except Exception as e:
+                      self.Log("Exception: " + e.__str__())
+
                     if len(temp) > 0:
                         res = res + temp
                                         
                         stat = 1
-                        while self.isRunning() and stat != 0 and len(res) > 0:                    
+                        while self.isRunning() and stat != 0 and len(res) > 0:
                             (stat, flen) = checkNibeMessage(res, prevchar)
                             
                             if stat > 0:
@@ -1088,14 +1095,14 @@ class NibeRS485Serial(NibeRS485Base):
             self.setFail()
 
         self.closePort()
-       
+
         self.Log("Nibe Bus serial thread stopped.")
     
                 
     def openPort(self):
-        if str(NIBE_DEVICES) not in self.NIBE_DEVICE:
-            self.Log("ERROR: Invalid NIBE device type: " + self.NIBE_DEVICE)
-            return 0
+        if not NIBE_DEVICES.__contains__(self.NIBE_DEVICE):
+          self.Log("ERROR: Invalid NIBE device type: " + self.NIBE_DEVICE)
+          return 0
 
         if not self.LOCK.lock():
             self.Log("ERROR: Unable to aquire lockfile for nibeBus serial port: " + self.LOCK.getName())
@@ -1111,7 +1118,6 @@ class NibeRS485Serial(NibeRS485Base):
                 self.LOCK.free()
                 return 0 
         except Exception as e:
-            print("Exception: ", str(e))
             self.Log("Error opening nibeBus serial port: " + self.SERPORT)
             self.serio = 0
             self.LOCK.free()

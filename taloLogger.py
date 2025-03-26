@@ -234,7 +234,7 @@ class TaloLoggerThreadMaster(log.Logging, dataSource.DataSourceListener):
             temp = {}
             for v in val:
                 temp2 = v.split('.', 1)
-                if str(temp) not in temp2[0]:
+                if not temp.__contains__(temp2[0]):
                     temp[temp2[0]] = [ temp2[1] ]
                 else:
                     temp[temp2[0]].append(temp2[1])
@@ -331,7 +331,6 @@ class TaloLoggerThreadStore(threads.Thread, log.Logging, persistState.StatePersi
         if self.prevresult == None:
             self.prevresult = {}
 
-
     def terminate(self):
         self.terminated = 1
 
@@ -355,7 +354,7 @@ class TaloLoggerThreadStore(threads.Thread, log.Logging, persistState.StatePersi
                             self.myMaster.inqueue_item = self.myMaster.inqueue_item[1:]
                             haslock = False
                             self.myMaster.inq_lock.free()
-        
+                            
                             tempresult = item[3]
                             for k in tempresult.keys():
                                 if len(tempresult[k]) <= 0:
@@ -375,6 +374,7 @@ class TaloLoggerThreadStore(threads.Thread, log.Logging, persistState.StatePersi
                     time.sleep(1)
             except Exception as e:
                 traceback.print_exc(file=sys.stdout)
+                print("Exception: " + e.__str__())
                 self.Log("Exception: " + e.__str__())
                 self.terminated = 1
         
@@ -431,41 +431,6 @@ class TaloLoggerThreadStore(threads.Thread, log.Logging, persistState.StatePersi
 
         # run commands POSTCYCLE
         runPhaseCommands(self.commands['POSTCYCLE'], resultdict, self)
-
-
-class ReleasedVersionChecker(threads.Thread, log.Logging):
-    def __init__(self):
-        threads.Thread.__init__(self)
-        log.Logging.__init__(self, 'ReleasedVersionChecker')
-        
-    def run(self):
-        url = 'http://olammi.iki.fi/sw/taloLogger/current_release.txt'
-        res = ''
-        try:
-            USERAGENT = "taloLogger/" + VERSION + " (Python/" + platform.python_version() + "; Sys/" + platform.platform() + ")"
-            req = urllib2.Request(url)
-            req.add_header("User-Agent", USERAGENT)
-            f = urllib2.urlopen(req)
-            res = f.readlines()
-            f.close()
-        except:
-            return
-    
-        if len(res) <= 0:
-            return
-    
-        res = res[0].split('\n')[0].strip()
-        if len(res) <= 0:
-            return
-    
-        if VERSION < res:
-            self.Log("\n######################################################################\n" + \
-                     "#    There is a newer release version of taloLogger available in \n" + \
-                     "# \n" + \
-                     "#                  http://olammi.iki.fi/sw/taloLogger/\n" + \
-                     "# \n" + \
-                     "#    Current version: %s    Available release version: %s\n" % (VERSION, res) + \
-                     "######################################################################")
 
 ###########################################################################
 
@@ -577,11 +542,6 @@ def GetDataStoreClass(mtype):
     return None
 
 
-def CheckReleasedVersion():
-    checker = ReleasedVersionChecker()
-    checker.start()
-      
-              
 ####### main ##########################################################
 
 def main():
@@ -643,8 +603,6 @@ def main():
 
   LOG = log.Logger(conf)
   log.Logging.setLogger(LOG)
-
-  CheckReleasedVersion()  
 
   pstate_dir = conf.getValue('PERSISTENT_STATE_DIRECTORY', '')
   if pstate_dir:

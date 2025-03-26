@@ -310,7 +310,7 @@ class NibeSerial(threads.Thread, log.Logging):
             self.typelens[t[0]] = TYPE_LENGTHS[t[2]]
         
     def openPort(self):
-        if NIBE_DEVICES not in self.NIBE_DEVICE:
+        if not NIBE_DEVICES.__contains__(self.NIBE_DEVICE):
             self.Log("ERROR: Invalid NIBE device type: " + self.NIBE_DEVICE)
             return 0
 
@@ -394,7 +394,7 @@ class NibeSerial(threads.Thread, log.Logging):
 
         res = None
         if self.data_lock.lock_wait():
-            if self.data in id:
+            if self.data.__contains__(id):
                 temp = self.data[id]
                 if (time.time() - temp[0]) <= DATAVALID:
                     res = temp[1]
