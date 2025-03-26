@@ -73,16 +73,15 @@ class StatePersistCapable(object):
             try:
                 if self.log:
                     self.log.Debug("Loading module state from: " + fname)
-                infile = open(fname, 'r')
-                stateObject = cPickle.load(infile)
-                infile.close()                 
+                file = open(fname, "r")
+                stateObject = file.read()
+                file.close()
                 if self.log:
                     self.log.Log("Module state loaded.")
                 return stateObject
-            except Exception as e:
-                print("Exception: ", e.__str__())
+            except:
                 if self.log:
-                    self.log.Log("ERROR: Error loading module state from " + fname)
+                    self.log.Log("WARN: Error loading module state from " + fname)
                 return None 
         return None
     
@@ -98,9 +97,9 @@ class StatePersistCapable(object):
             try:
                 if self.log:
                     self.log.Debug("Saving module state to  " + fname)
-                outfile = open(fname, 'w')
-                cPickle.dump(stateObject, outfile)
-                outfile.close()
+                with open(fname, "w") as file:
+                  file.writelines(str(stateObject))
+                  file.close()
                 if self.log:                 
                     self.log.Debug("Module state saved.")
                 return 1
