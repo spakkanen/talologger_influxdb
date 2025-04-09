@@ -35,7 +35,8 @@
 
 import sys, os 
 import string
-import time 
+import time
+import traceback
 import socket
 
 from modules.core import threads
@@ -51,8 +52,8 @@ serial = None
 # Constants
 
 BAUDRATE = 9600
-TIMEOUT = 5
-WRTIMEOUT = 2
+TIMEOUT = 120
+WRTIMEOUT = 10
 DATAVALID = 240
 QUERY_RESPONSE_TIMEOUT = 10
 SLEEP_AFTER_FAIL = 10
@@ -774,60 +775,56 @@ class NibeRS485Base(threads.Thread, log.Logging):
         self.NIBE_DEVICE = device
                         
     def handleBuffer(self, buff):
-        print("jei2###########")
-        # check that the 4th byte is correct command 0x68
-        if len(buff) < 4 or (buff[3] != '\x68' and buff[3] != '\x6A' and buff[3] != '\x6D'):
-            self.Debug("Ignoring frame with unknown command in byte 4.")
+        # Check that the 4th byte is correct command 0x68.
+        if len(buff) < 4 or (buff[3] != 104 and buff[3] != 106 and buff[3] != 109):
+            self.Debug("Ignoring frame with unknown command in byte 4. Decimal: " + str(buff[3]))
             return
-        
+
         cmd = buff[3]
         temp = getNibeDataPart(buff)
-        temp = fixNibeDataPart(temp)
-
-        print("jei###########")
         
-        if cmd == '\x68':       # str(ord(cmd)) = 104.
+        if cmd == 104:
             if self.data_lock.lock_wait():
                 try:                    
                     id = 0
                     l = len(temp)
                     i = 0
                     while i < l:
-                        id = (ord(temp[i+1]) << 8) + ord(temp[i])
+                        id = (temp[i+1] << 8) + temp[i]
                         i = i + 2
-                        value = (ord(temp[i+1]) << 8) + ord(temp[i])
+                        value = (temp[i+1] << 8) + temp[i]
                         i = i + 2
-                        
-                        #self.Log("ID: "+str(id))
                         
                         # if data left and next id is 0xFFFF: use that value as most 32bit value most significant bits
                         if i + 4 <= l:
-                            if (ord(temp[i+1]) << 8) + ord(temp[i]) == 0xFFFF:
+                            if (temp[i+1] << 8) + temp[i] == 65535:
                                 i = i + 2
-                                value32 = (ord(temp[i+1]) << 8) + ord(temp[i])
+                                value32 = (temp[i+1] << 8) + temp[i]
                                 i = i + 2
                                 value = value + (value32 << 16)
         
                         self.data[id] = [time.time(), value]
 
-                        if str(id) != "65535":
-                          self.Debug("INFO: Got data for id %d: 0x%04X" % (id, value))
+                        (nibeDeviceName, nibeDeviceType) = getNibeMeasureName(id)
+
+                        if id != 65535:
+                          self.Debug("INFO: Got data for id: "+str(id)+", name: "+str(nibeDeviceName)+", value: " + str(convertNibeMessage(nibeDeviceType, value)))
                         while id in self.query_queue:
                             self.query_queue.remove(id)
                 finally:
                     self.data_lock.free()
             else:
                 self.Log("Cannot get data lock.")
-        elif cmd == '\x6A':
+        elif cmd == 106:
             id = 0
             l = len(temp)
             i = 0
-            id = (ord(temp[i+1]) << 8) + ord(temp[i])
+            id = (temp[i+1] << 8) + temp[i]
             i = i + 2
-            value = (ord(temp[i+1]) << 8) + ord(temp[i])
+            value = (temp[i+1] << 8) + temp[i]
             i = i + 2
             if i + 2 <= l:
-                value32 = (ord(temp[i+1]) << 8) + ord(temp[i])
+                value32 = (temp[i+1] << 8) + temp[i]
                 i = i + 2
                 value = value + (value32 << 16)
 
@@ -845,16 +842,16 @@ class NibeRS485Base(threads.Thread, log.Logging):
                     self.data_lock.free()
             else:
                 self.Log("Cannot get data lock.")
-        elif cmd == '\x6D':         # str(ord(cmd)) = 109.
+        elif cmd == 109:
             if len(temp) > 3:
                 idstr = temp[3:]
                 if not self.hasIdentified:
-                    self.Log("Received identification: %s" % idstr)
+                    self.Log("Received identification: %s" % str(idstr, encoding='utf-8'))
                     self.hasIdentified = True
                 else:
-                    self.Debug("Received identification: %s" % idstr)
+                    self.Debug("Received identification: %s" % str(idstr, encoding='utf-8'))
         else:
-            self.Log("Unknown character: "+ord(cmd))
+            self.Log("ERROR: Unknown character: "+ str(cmd))
             
     def runQueryCommands(self, cmds):
         if self.hasTerminated() and self.isFailed():
@@ -1023,75 +1020,71 @@ class NibeRS485Serial(NibeRS485Base):
                 temp = ' '
                 while self.isRunning() and len(temp) > 0 and self.serio.inWaiting() > 0:
                     temp = self.serio.read(1)
-
-                res = ''
-                prevchar = ''
+                    
+                resArr = bytearray()
+                prevchar = 0
                 while self.isRunning():
-                    try:
-                      temp = self.serio.read(1)
-                    except Exception as e:
-                      self.Log("Exception: " + e.__str__())
+                    temp = self.serio.read(1)
 
                     if len(temp) > 0:
-                        res = res + temp
-                                        
+                        resArr += bytearray(temp)
                         stat = 1
-                        while self.isRunning() and stat != 0 and len(res) > 0:
-                            (stat, flen) = checkNibeMessage(res, prevchar)
+                        while self.isRunning() and stat != 0 and len(resArr) > 0:             
+                            (stat, flen) = checkNibeMessage(resArr, prevchar)
                             
                             if stat > 0:
-                                rcvdata = res[:flen]
-                                prevchar = rcvdata[flen-1]
-                                res = res[flen:]
-                                if stat == 1:
-                                    buff = ''
-                                    # if command in frame is '\x69', we can ask for data
-                                    if rcvdata[3] == '\x69':
-                                        # determine if there is something to query
-                                        if self.data_lock.lock_wait():
-                                            try:                                        
-                                                if len(self.query_queue) > 0:
-                                                    # qid is 40004.
-                                                    qid = self.query_queue[0]
-                                                    while qid in self.query_queue:
-                                                        self.query_queue.remove(qid)
-                                                    if self.runQueryId(qid, True) == None:
-                                                        self.query_queue.append(qid)
-                                                        self.query_sent.append(qid)
-                                                        buff = buff + generateNibeIdQuery(qid)
-                                                        self.Debug("Generating data query for id %d" % qid)
-                                            finally:
-                                                self.data_lock.free()
-                                    buff = buff + '\x06'
-                                    self.serio.write(buff)
-                                    self.serio.flush()
-                                    self.Debug("Received:\n" + log.dumpBuffer(rcvdata))
-                                    self.Debug("Sending ACK")
-                                    self.handleBuffer(rcvdata)
-                                elif stat == 2:
-                                    self.serio.write('\x15')
-                                    self.serio.flush()
-                                    self.Debug("Received:\n" + log.dumpBuffer(rcvdata))
-                                    self.Debug("Sending NAK")
-                                else:
-                                    self.Debug("Received:\n" + log.dumpBuffer(rcvdata))
-                                    self.Debug("Ignoring")                                    
-                                                                
-                            elif stat == -1:
-                                prevchar = res[0]
-                                res = res[1:]
-                                self.Debug("Dropping frame byte 0x%02X" % ord(prevchar))
+                              rcvdata = resArr[:flen]
+                              prevchar = rcvdata[flen-1]
+                              resArr = resArr[flen:]
+                              if stat == 1:
+                                buff = ''
+                                # if command in frame is '\x69' (decimal: 105), we can ask for data
+                                if rcvdata[3] == 105:
+                                    # determine if there is something to query
+                                    if self.data_lock.lock_wait():
+                                        try:                                        
+                                            if len(self.query_queue) > 0:
+                                                qid = self.query_queue[0]
+                                                while qid in self.query_queue:
+                                                    self.query_queue.remove(qid)
+                                                if self.runQueryId(qid, True) == None:
+                                                    self.query_queue.append(qid)
+                                                    self.query_sent.append(qid)
+                                                    buff = buff + generateNibeIdQuery(qid)
+                                                    self.Debug("Generating data query for id %d" % qid)
+                                        finally:
+                                            self.data_lock.free()
+                                buff = buff + '\x06'
+                                self.serio.write(buff.encode())
+                                self.serio.flush()
+                                self.Debug("Received:\n" + log.dumpBuffer(rcvdata))
+                                self.Debug("Sending ACK")
+                                self.handleBuffer(rcvdata)
+                              elif stat == 2:
+                                self.serio.write(('\x15').encode())
+                                self.serio.flush()
+                                self.Debug("Received:\n" + log.dumpBuffer(rcvdata))
+                                self.Debug("Sending NAK")
+                              else:
+                                self.Debug("Received:\n" + log.dumpBuffer(rcvdata))
+                                self.Debug("Ignoring, stat: " + str(stat))   
 
+                            elif stat == -1:
+                              prevchar = resArr[0]
+                              resArr = resArr[1:]
+                              self.Debug("Dropping frame decimal: " + str(prevchar))
+                    time.sleep(0.2)
                 self.closePort()
                                 
                 if self.isRunning():
                     time.sleep(SLEEP_AFTER_FAIL)
 
         except Exception as e:
-            self.Log("Exception: " + e.__str__())
+            self.Log("ERRCODE #101, Received query failed. Exception: " + e.__str__())
+            self.Log(file=sys.stdout)
             self.setFail()
         except IOError as ioe:
-            self.Log("IOError: " + ioe.__str__())
+            self.Log("ERRCODE #120, IOError: " + ioe.__str__())
             self.setFail()
 
         self.closePort()
@@ -1221,7 +1214,7 @@ class NibeRS485UDP(NibeRS485Base):
                                                     sock.sendto(generateNibeIdQuery(qid), (self.QUERYADDRESS, self.QUERYPORT))
                                                 except Exception as e:
                                                     self.Log("Error sending query UDP packet to %s port %d" % (self.QUERYADDRESS, self.QUERYPORT))
-                                                    self.Log("Exception: " + e.__str__())
+                                                    self.Log("ERRCODE #102, Exception: " + e.__str__())
                             finally:
                                 self.data_lock.free()
                     
@@ -1268,7 +1261,7 @@ class NibeRS485UDP(NibeRS485Base):
                     time.sleep(SLEEP_AFTER_FAIL)
 
         except Exception as e:
-            self.Log("Exception: " + e.__str__())
+            self.Log("ERRCODE #103, Exception: " + e.__str__())
             self.setFail()
         except IOError as ioe:
             self.Log("IOError: " + ioe.__str__())
@@ -1299,58 +1292,50 @@ class NibeRS485UDP(NibeRS485Base):
 #   1 = ok, data lenght in datalen
 #   2 = not ok, crc fail, data lenght in datalen
 #   3 = ok/not ok, frame not for this device
-def checkNibeMessage(data, previousChar = ''):
+def checkNibeMessage(data = bytearray(), previousChar = -1):
     l = len(data)
     dl = 0
+
     if l <= 0:
         return (0, 0)
 
     # if the previous character is 5C, must abandon one
     # back-to-back 5C can only be in the data part,
     # this is also why CRC is never 5C
-    if l >= 1 and previousChar == '\x5C':
-        return (-1, 0)
-
-    # first byte is '\x5C'
-    if l >= 1 and data[0] != '\x5C':
-        return (-1, 0)
-
-    # second byte is '\x00'
-    if l >= 2 and data[1] != '\x00':
+    if l >= 1 and previousChar == 92:
         return (-1, 0)
     
+    # First byte is Hex: '\x5C', Decimal: 92.
+    if l >= 1 and data[0] != 92:
+        return (-1, 0)
+
+    # Second byte is Hex: '\x00', Decimal: 0.
+    if l >= 2 and data[1] != 0:
+        return (-1, 0)
+
     # fifth byte is data part len
     if l >= 5:
-        dl = ord(data[4])
+        dl = data[4]
     else:
         return (0, 0)
-    
-    # in case the frame length was not ok, find possible start of a new frame in
-    # the data part
-    if l >= 5+2:
-        i = 5
-        while i < l-1:
-            if data[i] == '\x5C' and data[i+1] == '\x00' and data[i-1] != '\x5C':
-                return (-1, 0)
-            i = i + 1
     
     # if 1 byte crc and all data have not yet arrived
     if l < dl + 6:
         return (0, 0)
     
     # check third byte address
-    # third byte should be '\x20'
-    if data[2] != '\x20':
+    # third byte should be Hex: '\x20', Decimal: 32.
+    if data[2] != 32:
         return (3, dl + 6)
 
     # check CRC
     crc = 0
     for i in range(2, dl + 5):
-        crc = crc ^ ord(data[i])
-    datacrc = ord(data[dl + 5])    
+        crc = crc ^ data[i]
+    datacrc = (data[dl + 5])
     
-    if crc == 0x5C:
-        if datacrc != 0xC5:
+    if crc == 92:
+        if datacrc != 197:
             return (2, dl + 6)
     elif crc != datacrc:
         return (2, dl + 6)
@@ -1368,27 +1353,20 @@ def calculateCRC(data):
     return chr(crc)
     
 def getNibeDataPart(data):
-    dl = ord(data[4])
+    dl = data[4]
     return data[5:5+dl]
-    
-def fixNibeDataPart(data):
-    temp = ''
-    # remove back_to_back 0x5C characters
-    i = 0
-    l = len(data)
-    while i < l:
-        temp = temp + data[i]
-        if data[i] == '\x5C' and i+1 < l and data[i+1] == '\x5C':
-            i = i + 1
-        i = i + 1
-    
-    return temp
 
+def getNibeMeasureName(id):
+    for t in NIBE_DEVICES['DEFAULT']:
+      if t[0] == id:
+        return (t[1], t[2])
+      
+    return (None, None)
+    
 def generateNibeIdQuery(qid):
     ## query id LSB first
     tdata = chr(qid & 0x00FF)
     tdata = tdata + chr((qid >> 8) & 0x00FF)
-    tdata = unfixNibeDataPart(tdata)
 
     buff = '\xC0\x69'
     buff = buff + chr(len(tdata))
@@ -1397,23 +1375,9 @@ def generateNibeIdQuery(qid):
 
     return buff
     
-def unfixNibeDataPart(data):
-    temp = ''
-    # escape 0x5C characters with 0x5C
-    i = 0
-    l = len(data)
-    while i < l:
-        temp = temp + data[i]
-        if data[i] == '\x5C':
-            temp = temp + '\x5C'
-        i = i + 1
-    
-    return temp
-    
-    
 def convertNibeMessage(type, value):
     if type == TYPE_INT8:
-        temp = binary.twosComplementToInt(value & 0x00FF, 8)
+        temp = binary.twosComplementToInt(value, 8)
         temp = "%d" % temp
         return temp
     elif type == TYPE_INT16:
@@ -1425,7 +1389,7 @@ def convertNibeMessage(type, value):
         temp = "%d" % temp
         return temp
     elif type == TYPE_UINT8:
-        temp = "%d" % (value & 0x00FF)
+        temp = "%d" % value
         return temp
     elif type == TYPE_UINT16:
         temp = "%d" % value
@@ -1438,7 +1402,7 @@ def convertNibeMessage(type, value):
         temp = "%.1f" % (temp / 10.0)
         return temp
     elif type == TYPE_INT8_10:
-        temp = binary.twosComplementToInt(value & 0x00FF, 8)
+        temp = binary.twosComplementToInt(value, 8)
         temp = "%.1f" % (temp / 10.0)
         return temp
     elif type == TYPE_INT32_10:
@@ -1449,7 +1413,7 @@ def convertNibeMessage(type, value):
         temp = "%.1f" % (value / 10.0)
         return temp
     elif type == TYPE_UINT8_10:
-        temp = "%.1f" % ((value & 0x00FF) / 10.0)
+        temp = "%.1f" % (value / 10.0)
         return temp
     elif type == TYPE_INT16_100:
         temp = binary.twosComplementToInt(value, 16)

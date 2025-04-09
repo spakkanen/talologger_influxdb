@@ -69,6 +69,7 @@ class Store(configuration.Configurable, log.Logging):
 
     def insertData(self, timeval, values):
         self.Log("Insert data values: "+str(values))
+            
         if self.storefilters != None:
             temp = []
             tempdata = {}

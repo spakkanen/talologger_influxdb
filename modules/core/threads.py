@@ -38,6 +38,7 @@
 
 import sys
 import threading
+import traceback
 import signal, time
 
 ###########################################################################
@@ -87,8 +88,9 @@ class Thread(object):
             print("Starting thread name: ", starter)
             starter.run()
         except Exception as e:
-            print("ERROR: Error running thread id: ", str(self.tid), ", starter id: ", str(starter))
-
+            print("ERROR: Error running thread id: " + str(self.tid), ", starter id: " + str(starter), "Exception: " + e.__str__())
+            print(traceback.format_exc())
+            
         starter.setTerminated()
         starter.lock.free()        
 

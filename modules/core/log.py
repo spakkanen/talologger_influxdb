@@ -118,7 +118,7 @@ def dumpBuffer(buff):
     temp = ''
     i = 0
     while i < len(buff):
-        temp = temp + " %02X" %(ord(buff[i]),)
+        temp = temp + " %02X" %(buff[i],)
         i = i + 1
         if i % 16 == 0 and i < len(buff):
             temp = temp + '\n'

@@ -249,7 +249,7 @@ class TaloLoggerThreadMaster(log.Logging, dataSource.DataSourceListener):
                     if item[2] == queuets:
                         for key in data.keys():
                             tkey = moduleid + '.' + key
-                            self.Debug("Measure datas:" + str(item))
+                            #self.Debug("Measure datas:" + str(item))
 
                             if tkey in item[1]:
                                 item[3][tkey] = data[key]
